@@ -1,0 +1,162 @@
+library(data.tree)
+
+#------------------replaceQuestionMark----------------------------------
+replaceQuestionMark <-function(data){
+  for(value in 2:ncol(data))
+  {
+    colname=names(data)[value]
+    
+    num_col_n=nrow(data[data[,colname]=="n",])
+    num_col_y=nrow(data[data[,colname]=="y",])
+    if(num_col_n >num_col_y )
+    {
+      for(y in 1:nrow(data))
+      {
+        if( data[y,value]=="?")
+          data[y,value]="n"
+      }
+    }
+    else{
+      for(y in 1:nrow(data))
+      {
+        if( data[y,value]=="?")
+          data[y,value]="y"
+      }
+    }
+  }
+  data
+}
+#------------------Entropy----------------------------------
+
+Entropy <- function(num1,num2) {
+  p1=num1/(num1+num2)
+  p2=num2/(num1+num2)
+  if(num1==0 | num2==0)
+  {
+    return(0)
+  }
+  ent<- -(p1*log2(p1))-(p2*log2(p2))
+  ent
+}
+#------------------IsPure----------------------------------
+
+IsPure <- function(data) {
+  length(unique(data[,1])) == 1
+}
+#------------------InformationGain----------------------------------
+
+InformationGain<- function(test ,colname) {
+  num_democ<- nrow(subset(test ,col1=="democrat"))
+  num_repub<-  nrow(subset(test ,col1=="republican"))
+  n<- num_democ+num_repub
+  num_yes_democ <- nrow(test[test[,"col1"]=="democrat" &test[,colname]=="y" ,])
+  num_yes_repub <- nrow(test[test[,"col1"]=="republican" &test[,colname]=="y" ,])
+  print("num_yes_democ")
+  print(num_yes_democ)
+  print("num_yes_repub")
+  print(num_yes_repub)
+  num_no_democ <- nrow(test[test[,"col1"]=="democrat" &test[,colname]=="n" ,])
+  num_no_repub <- nrow(test[test[,"col1"]=="republican" &test[,colname]=="n" ,])
+  pyes<- (num_yes_democ+num_yes_repub)/n
+  pno<- (num_no_democ+num_no_repub)/n
+  print("Entropy(num_democ,num_repub)")
+  print(Entropy(num_democ,num_repub))
+  print("Entropy(num_yes_democ,num_yes_repub)")
+  print(Entropy(num_yes_democ,num_yes_repub))
+  print("Entropy(num_no_democ,num_no_repub)")
+  print(Entropy(num_no_democ,num_no_repub))
+  IG<- Entropy(num_democ,num_repub)-(pyes*Entropy(num_yes_democ,num_yes_repub))-(pno*Entropy(num_no_democ,num_no_repub))
+  IG
+}
+------------------------------dtTrain------------------------------------
+dtTrain <- function(test ,node)
+{
+  print(test)
+  max=0 ;
+  colgain=0
+  maxindex=0
+  for(value in 2:ncol(test))
+  {
+    colname=names(test)[value]
+    temp=InformationGain(test ,colname)
+    print("ffffffff")
+    print(temp)
+    if(temp>max)
+    {
+      max=temp
+      colgain=colname
+      maxindex=(value-1)
+    }
+    
+  }
+  
+  max
+  print("colgain max")
+  print(colgain)
+  if(IsPure(test))
+  {
+    node$ind=unique(test[,1])
+  }
+  else
+  {
+    node$ind=maxindex
+    datayes=test[test[,colgain]=="y",]
+    datano=test[test[,colgain]=="n",]
+    datayes[,colgain]<- NULL
+    datano[,colgain]<- NULL
+    dtTrain(datayes,node$AddChild("yes" ,ind=0))
+    dtTrain(datano,node$AddChild("no" ,ind=0))
+  }
+}
+------------------------------predictDecsionTree------------------------------------
+predictDecsionTree <- function(tree ,feat){
+ i <- tree$ind
+ print("index is")
+ print(i)
+ v<- feat[i]
+ print("freature is")
+ print(v)
+if (feat[i]=='y')
+{
+  if(length(tree$yes)!=0)
+  {
+    print(tree$ind)
+    predictDecsionTree(tree$yes ,feat)
+  }
+  else
+  {
+    print("type is")
+    print(tree$ind)
+    print(tree$ind)
+  }
+  
+}
+else if(feat[i]=='n')
+{
+  if(length(tree$yes)!=0)
+  {
+    print(tree$ind)
+    predictDecsionTree(tree$no ,feat)
+  }
+  else
+  {
+    print("type is")
+    print(tree$ind)
+    type=tree$ind
+  }
+}
+}
+#------------------------------ main -----------------------------------
+
+data=read.csv("house-votes-84.data.txt")
+colnames(data)<- paste("col",1:ncol(data),sep="")
+split=1/3
+trainData=data[1:(split*nrow(data)),]
+type=""
+tree <-  Node$new("vote",ind=0)
+dtTrain(trainData,tree)
+predictDecsionTree(tree ,c('n','y','n','y','y','y','n','n','n','y','y','y','y','y','n','y'))
+predictDecsionTree(tree ,c('y','y','y','y','y','y','y','y','y','y','y','y','y','y','y','y'))
+predictDecsionTree(tree ,c('y','n','y','n','n','n','y','y','y','y','n','n','n','n','y','y'))
+predictDecsionTree(tree ,c('n','y','y','n','y','y','y','y','n','n','y','n','y','n','y','y'))
+
